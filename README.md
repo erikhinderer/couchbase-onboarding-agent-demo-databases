@@ -54,6 +54,15 @@ All values also live in `.env` if you want to change them before first start
 (changing them after volumes already exist won't retroactively update
 already-created users - wipe the volumes with `docker compose down -v` first).
 
+## Database Names
+
+| Database | Data location |
+|MongoDB Enterprise	| database mockdb, collection mock_data |
+|DynamoDB Local	| table MockData |
+|Redis	keys prefixed | mockdata:<id> (single flat keyspace, DB 0) |
+|Cassandra	keyspace | mockdata, table mock_data |
+|Cosmos DB Emulator	| database MockDB, container MockData |
+
 ### Why Dynamo and Cosmos don't use demo/Couchbase123!
 
 Neither engine has a real username/password auth model:
