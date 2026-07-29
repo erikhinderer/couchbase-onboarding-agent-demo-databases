@@ -1,0 +1,156 @@
+name: couchbase-onboarding-agent-demo-databases
+
+services:
+  mongodb:
+    image: mongodb/mongodb-enterprise-server:latest
+    container_name: mongodb-enterprise
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: >
+        mongosh --quiet --username ${MONGO_USERNAME} --password ${MONGO_PASSWORD}
+        --authenticationDatabase admin --eval "db.runCommand({ping:1})" || exit 1
+      interval: 10s
+      timeout: 10s
+      retries: 15
+      start_period: 30s
+
+  dynamodb-local:
+    image: amazon/dynamodb-local:latest
+    container_name: dynamodb-local
+    restart: unless-stopped
+    working_dir: /home/dynamodblocal
+    command: ["-jar", "DynamoDBLocal.jar", "-sharedDb", "-dbPath", "/home/dynamodblocal/data"]
+    ports:
+      - "8001:8000"
+    volumes:
+      - dynamo_data:/home/dynamodblocal/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s -o /dev/null http://localhost:8000/ || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 15
+      start_period: 15s
+
+  redis:
+    image: redis:7.4
+    container_name: redis-demo
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command:
+      - "redis-server"
+      - "--user"
+      - "default"
+      - "off"
+      - "nopass"
+      - "--user"
+      - "${REDIS_USERNAME}"
+      - "on"
+      - ">${REDIS_PASSWORD}"
+      - "allcommands"
+      - "allkeys"
+      - "allchannels"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli --user ${REDIS_USERNAME} --pass ${REDIS_PASSWORD} --no-auth-warning ping | grep -q PONG"]
+      interval: 10s
+      timeout: 10s
+      retries: 15
+      start_period: 10s
+
+  cassandra:
+    image: cassandra:4.1
+    container_name: cassandra-demo
+    restart: unless-stopped
+    ports:
+      - "9042:9042"
+    environment:
+      CASSANDRA_CLUSTER_NAME: MockDemoCluster
+    command: >
+      bash -c "sed -i 's/authenticator: AllowAllAuthenticator/authenticator: PasswordAuthenticator/' /etc/cassandra/cassandra.yaml &&
+      sed -i 's/authorizer: AllowAllAuthorizer/authorizer: CassandraAuthorizer/' /etc/cassandra/cassandra.yaml &&
+      docker-entrypoint.sh cassandra -f"
+    volumes:
+      - cassandra_data:/var/lib/cassandra
+    healthcheck:
+      test: ["CMD-SHELL", "cqlsh -u ${CASSANDRA_BOOTSTRAP_USERNAME} -p ${CASSANDRA_BOOTSTRAP_PASSWORD} -e 'SELECT release_version FROM system.local' || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 90s
+
+  cosmosdb-emulator:
+    image: mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:vnext-latest
+    container_name: cosmosdb-emulator
+    restart: unless-stopped
+    mem_limit: 4g
+    ports:
+      - "8081:8081"
+      - "1234:1234"
+    healthcheck:
+      # The emulator image doesn't reliably ship curl/wget, and the gateway's
+      # TLS behavior on "/" isn't consistent across builds. A bare TCP check
+      # via bash's /dev/tcp avoids depending on either of those and just
+      # confirms the gateway port is accepting connections.
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/127.0.0.1/8081' >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 30
+      start_period: 120s
+
+  loader:
+    build: ./loader
+    container_name: mock-data-loader
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      dynamodb-local:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      cassandra:
+        condition: service_healthy
+      cosmosdb-emulator:
+        condition: service_healthy
+    environment:
+      MOCK_DATA_SIZE_MB: ${MOCK_DATA_SIZE_MB}
+
+      MONGO_HOST: mongodb
+      MONGO_PORT: 27017
+      MONGO_USERNAME: ${MONGO_USERNAME}
+      MONGO_PASSWORD: ${MONGO_PASSWORD}
+
+      DYNAMODB_ENDPOINT: http://dynamodb-local:8000
+      DYNAMODB_ACCESS_KEY_ID: ${DYNAMODB_ACCESS_KEY_ID}
+      DYNAMODB_SECRET_ACCESS_KEY: ${DYNAMODB_SECRET_ACCESS_KEY}
+
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_USERNAME: ${REDIS_USERNAME}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+
+      CASSANDRA_HOST: cassandra
+      CASSANDRA_PORT: 9042
+      CASSANDRA_BOOTSTRAP_USERNAME: ${CASSANDRA_BOOTSTRAP_USERNAME}
+      CASSANDRA_BOOTSTRAP_PASSWORD: ${CASSANDRA_BOOTSTRAP_PASSWORD}
+      CASSANDRA_DEMO_USERNAME: ${CASSANDRA_DEMO_USERNAME}
+      CASSANDRA_DEMO_PASSWORD: ${CASSANDRA_DEMO_PASSWORD}
+
+      COSMOS_ENDPOINT: https://cosmosdb-emulator:8081
+      COSMOS_KEY: ${COSMOS_KEY}
+    volumes:
+      - ./data:/data
+
+volumes:
+  mongo_data:
+  dynamo_data:
+  redis_data:
+  cassandra_data:
