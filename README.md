@@ -42,7 +42,7 @@ The loader exits (status 0) once all five databases are loaded. Re-running
 
 ## Credentials
 
-| Database | Connection String | Username | Password | Notes |
+| Database | Migration Connection String | Username | Password | Notes |
 |---|---|---|---|---|
 | MongoDB Enterprise | `mongodb://host.docker.internal:27017` | `demo` | `Couchbase123!` | Root user via `MONGO_INITDB_ROOT_*` |
 | Redis | `redis://host.docker.internal:6379` | `demo` | `Couchbase123!` | ACL user, `default` user disabled |
