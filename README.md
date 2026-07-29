@@ -77,19 +77,21 @@ already-created users - wipe the volumes with `docker compose down -v` first).
 
 ```bash
 # MongoDB
-mongosh "mongodb://demo:Couchbase123!@host.docker.internal:27017/mockdb?authSource=admin"
+# 1. MongoDB — should show mockdb.mock_data with a large count
+mongosh "mongodb://demo:Couchbase123!@localhost:27017/mockdb?authSource=admin" --eval "print('collections:', db.getCollectionNames()); print('count:', db.mock_data.countDocuments())"
 
-# Redis
-redis-cli -h host.docker.internal -p 6379 --user demo --pass 'Couchbase123!' --no-auth-warning
+# 2. Redis — should show a large key count
+redis-cli -h localhost -p 6379 --user demo --pass 'Couchbase123!' --no-auth-warning DBSIZE
 
-# Cassandra
-cqlsh host.docker.internal 9042 -u demo -p 'Couchbase123!'
+# 3. Cassandra — should show a large count (may take a moment)
+cqlsh localhost 9042 -u demo -p 'Couchbase123!' -e "SELECT COUNT(*) FROM mockdata.mock_data;"
 
-# DynamoDB Local (AWS CLI)
-aws dynamodb list-tables --endpoint-url http://host.docker.internal:8001 --region us-east-1
+# 4. DynamoDB Local — should list "MockData" and show a large item count
+aws dynamodb list-tables --endpoint-url http://localhost:8001 --region us-east-1
+aws dynamodb scan --endpoint-url http://localhost:8001 --region us-east-1 --table-name MockData --select COUNT
 
-# Cosmos DB Emulator Data Explorer
-open https://host.docker.internal:8081/_explorer/index.html
+# 5. Cosmos DB Emulator — open the Data Explorer and check MockDB > MockData item count
+open https://localhost:8081/_explorer/index.html
 ```
 
 ### Why Dynamo and Cosmos don't use demo/Couchbase123!
