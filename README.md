@@ -42,13 +42,22 @@ The loader exits (status 0) once all five databases are loaded. Re-running
 
 ## Credentials
 
-| Database | Host:Port | Username | Password | Notes |
+| Database | Connection String | Username | Password | Notes |
 |---|---|---|---|---|
-| MongoDB Enterprise | localhost:27017 | `demo` | `Couchbase123!` | Root user via `MONGO_INITDB_ROOT_*` |
-| Redis | localhost:6379 | `demo` | `Couchbase123!` | ACL user, `default` user disabled |
-| Cassandra | localhost:9042 | `demo` | `Couchbase123!` | Created by the loader after bootstrapping with the image's default `cassandra`/`cassandra` superuser |
-| DynamoDB Local | localhost:8001 | n/a | n/a | See caveat below |
-| Cosmos DB Emulator | localhost:8081 | n/a | n/a | See caveat below |
+| MongoDB Enterprise | `mongodb://host.docker.internal:27017` | `demo` | `Couchbase123!` | Root user via `MONGO_INITDB_ROOT_*` |
+| Redis | `redis://host.docker.internal:6379` | `demo` | `Couchbase123!` | ACL user, `default` user disabled |
+| Cassandra | `cassandra://host.docker.internal:9042` | `demo` | `Couchbase123!` | Created by the loader after bootstrapping with the image's default `cassandra`/`cassandra` superuser |
+| DynamoDB Local | `http://host.docker.internal:8001` | n/a | n/a | See caveat below |
+| Cosmos DB Emulator | `https://host.docker.internal:8081` | n/a | n/a | See caveat below |
+
+These use `host.docker.internal` because they're meant to be reached from
+another container (e.g. the Couchbase Onboarding Agent backend) rather than
+from this stack's own network. `host.docker.internal` resolves to the host
+machine from inside any container on Docker Desktop (Mac/Windows) without
+extra config; on native Linux Docker Engine you'd need to add
+`extra_hosts: ["host.docker.internal:host-gateway"]` to the connecting
+container. If you're instead running commands directly on your Mac (see
+**Connecting** below), use `localhost` in place of `host.docker.internal`.
 
 All values also live in `.env` if you want to change them before first start
 (changing them after volumes already exist won't retroactively update
@@ -68,19 +77,20 @@ already-created users - wipe the volumes with `docker compose down -v` first).
 
 ```bash
 # MongoDB
-mongosh "mongodb://demo:Couchbase123!@localhost:27017/mockdb?authSource=admin"
+mongosh "mongodb://demo:Couchbase123!@host.docker.internal:27017/mockdb?authSource=admin"
 
 # Redis
-redis-cli -h localhost -p 6379 --user demo --pass 'Couchbase123!' --no-auth-warning
+redis-cli -h host.docker.internal -p 6379 --user demo --pass 'Couchbase123!' --no-auth-warning
 
 # Cassandra
-cqlsh localhost 9042 -u demo -p 'Couchbase123!'
+cqlsh host.docker.internal 9042 -u demo -p 'Couchbase123!'
 
 # DynamoDB Local (AWS CLI)
-aws dynamodb list-tables --endpoint-url http://localhost:8001 --region us-east-1
+aws dynamodb list-tables --endpoint-url http://host.docker.internal:8001 --region us-east-1
 
 # Cosmos DB Emulator Data Explorer
-open https://localhost:8081/_explorer/index.html
+open https://host.docker.internal:8081/_explorer/index.html
+```
 
 ### Why Dynamo and Cosmos don't use demo/Couchbase123!
 
@@ -99,8 +109,6 @@ Neither engine has a real username/password auth model:
 If you need real username/password gating in front of these two, put a proxy
 (e.g. an nginx sidecar with basic auth) in front of their ports - ask if you
 want that added.
-
-```
 
 ## What data gets loaded
 
