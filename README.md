@@ -54,24 +54,6 @@ All values also live in `.env` if you want to change them before first start
 (changing them after volumes already exist won't retroactively update
 already-created users - wipe the volumes with `docker compose down -v` first).
 
-### Why Dynamo and Cosmos don't use demo/Couchbase123!
-
-Neither engine has a real username/password auth model:
-
-- **DynamoDB Local** authenticates via the AWS SigV4 signing process, not a
-  password. It doesn't validate the credentials at all locally - any
-  access key/secret pair satisfies the AWS SDK's credential chain. The
-  compose file sets dummy values (`DYNAMODB_ACCESS_KEY_ID=demo`,
-  `DYNAMODB_SECRET_ACCESS_KEY=Couchbase123!`) purely so SDKs don't error out;
-  they carry no real security meaning.
-- **Azure Cosmos DB Emulator** always uses one fixed, publicly documented
-  master key (`COSMOS_KEY` in `.env`) - there's no way to set a custom
-  username or password for it.
-
-If you need real username/password gating in front of these two, put a proxy
-(e.g. an nginx sidecar with basic auth) in front of their ports - ask if you
-want that added.
-
 ## Database Names
 
 | Database | Data location |
@@ -99,6 +81,25 @@ aws dynamodb list-tables --endpoint-url http://localhost:8001 --region us-east-1
 
 # Cosmos DB Emulator Data Explorer
 open https://localhost:8081/_explorer/index.html
+
+### Why Dynamo and Cosmos don't use demo/Couchbase123!
+
+Neither engine has a real username/password auth model:
+
+- **DynamoDB Local** authenticates via the AWS SigV4 signing process, not a
+  password. It doesn't validate the credentials at all locally - any
+  access key/secret pair satisfies the AWS SDK's credential chain. The
+  compose file sets dummy values (`DYNAMODB_ACCESS_KEY_ID=demo`,
+  `DYNAMODB_SECRET_ACCESS_KEY=Couchbase123!`) purely so SDKs don't error out;
+  they carry no real security meaning.
+- **Azure Cosmos DB Emulator** always uses one fixed, publicly documented
+  master key (`COSMOS_KEY` in `.env`) - there's no way to set a custom
+  username or password for it.
+
+If you need real username/password gating in front of these two, put a proxy
+(e.g. an nginx sidecar with basic auth) in front of their ports - ask if you
+want that added.
+
 ```
 
 ## What data gets loaded
